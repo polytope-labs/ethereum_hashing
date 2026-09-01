@@ -12,6 +12,7 @@ categories = ["cryptography::cryptocurrencies"]
 rust-version = "1.83.0"
 
 [dependencies]
+spin = { version = "0.9", default-features = false, features = ["lazy", "once"] }
 ring = { version = "0.17", optional = true }
 sha2 = { version = "0.10", optional = true }
 
@@ -26,7 +27,8 @@ rustc-hex = "2"
 wasm-bindgen-test = "0.3.33"
 
 [features]
-default = ["zero_hash_cache", "ring"]
+default = ["std", "zero_hash_cache", "ring"]
+std = []
 zero_hash_cache = []
 ring = ["dep:ring"]
 sha2 = ["dep:sha2"]

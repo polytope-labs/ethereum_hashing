@@ -2,6 +2,7 @@
 #![cfg(any(target_arch = "x86_64", feature = "sha2"))]
 
 use crate::{Sha256, Sha256Context, HASH_LEN};
+use alloc::vec::Vec;
 use sha2::Digest;
 
 /// Implementation of SHA256 using the `sha2` crate (fastest on x86_64 CPUs with SHA extensions).
