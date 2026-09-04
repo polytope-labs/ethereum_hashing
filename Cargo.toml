@@ -12,7 +12,7 @@ categories = ["cryptography::cryptocurrencies"]
 rust-version = "1.83.0"
 
 [dependencies]
-spin = { version = "0.9", default-features = false, features = ["lazy", "once"] }
+spin = { version = "0.9", default-features = false, features = ["lazy", "once"], optional = true }
 ring = { version = "0.17", optional = true }
 sha2 = { version = "0.10", default-features = false, optional = true }
 
@@ -29,7 +29,8 @@ wasm-bindgen-test = "0.3.33"
 [features]
 default = ["std", "zero_hash_cache", "ring"]
 std = ["sha2?/std", "ring?/std"]
-zero_hash_cache = []
+# spin backs the zero hash cache only under no_std; std builds use std::sync::LazyLock.
+zero_hash_cache = ["dep:spin"]
 ring = ["dep:ring"]
 sha2 = ["dep:sha2"]
 # Enable ring's WASM support (wasm32-unknown-unknown target).
