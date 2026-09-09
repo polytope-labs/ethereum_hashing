@@ -7,6 +7,24 @@
 //! Now this crate serves primarily as a wrapper over two SHA256 crates: `sha2` and `ring` – which
 //! it switches between at runtime based on the availability of SHA intrinsics.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+// Selecting a backend is the consumer's choice, so say so once and clearly rather than letting
+// the failure surface as cascading type errors from an empty `DynamicImpl`.
+#[cfg(all(
+    not(feature = "ring"),
+    not(feature = "sha2"),
+    not(target_arch = "x86_64")
+))]
+compile_error!(
+    "ethereum_hashing needs a sha256 backend: enable the `sha2` feature (portable, required for \
+     wasm) or the `ring` feature. With --no-default-features neither is on by default."
+);
+
+extern crate alloc;
+
+use alloc::{vec, vec::Vec};
+
 #[cfg(test)]
 mod tests;
 
@@ -17,8 +35,12 @@ pub use self::DynamicContext as Context;
 #[cfg(any(target_arch = "x86_64", feature = "sha2"))]
 use sha2_impl::Sha2CrateImpl;
 
-#[cfg(feature = "zero_hash_cache")]
-use std::sync::LazyLock;
+#[cfg(all(feature = "zero_hash_cache", feature = "std"))]
+use std::sync::LazyLock as Lazy;
+// `spin` only where there is no `std::sync`: a spin lock is strictly worse under contention, so
+// std builds keep the futex backed one.
+#[cfg(all(feature = "zero_hash_cache", not(feature = "std")))]
+use spin::Lazy;
 
 /// Length of a SHA256 hash in bytes.
 pub const HASH_LEN: usize = 32;
@@ -151,18 +173,6 @@ impl DynamicImpl {
         {
             Self::Ring
         }
-
-        // Compile error if no implementation available
-        #[cfg(all(
-            not(feature = "ring"),
-            not(target_arch = "x86_64"),
-            not(feature = "sha2")
-        ))]
-        {
-            compile_error!(
-                "Either 'ring' or 'sha2' feature must be enabled on non-x86_64 architectures"
-            );
-        }
     }
 }
 
@@ -235,7 +245,7 @@ pub const ZERO_HASHES_MAX_INDEX: usize = 48;
 
 #[cfg(feature = "zero_hash_cache")]
 /// Cached zero hashes where `ZERO_HASHES[i]` is the hash of a Merkle tree with 2^i zero leaves.
-pub static ZERO_HASHES: LazyLock<Vec<[u8; HASH_LEN]>> = LazyLock::new(|| {
+pub static ZERO_HASHES: Lazy<Vec<[u8; HASH_LEN]>> = Lazy::new(|| {
     let mut hashes = vec![[0; HASH_LEN]; ZERO_HASHES_MAX_INDEX + 1];
 
     for i in 0..ZERO_HASHES_MAX_INDEX {
